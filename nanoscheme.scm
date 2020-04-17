@@ -330,7 +330,7 @@
 	(((core 'environment) 'define) 'vector-length vector-length)
 	(((core 'environment) 'define) 'vector-ref vector-ref)
 
-	(((core 'environment) 'define) 'display display)
+	(((core 'environment) 'define) 'display (lambda (text) (display text) '()))
 	(((core 'environment) 'define) 'read read)
 	(((core 'environment) 'define) 'error error)
 	(((core 'environment) 'define) 'exit exit)
