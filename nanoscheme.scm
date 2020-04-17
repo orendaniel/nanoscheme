@@ -83,8 +83,7 @@
 
 	(define quoted? (lambda (expr) (eqv? (car expr) 'quote)))
 
-	;(define quotate (lambda (expr) (cadr expr)))
-	(define quotate (lambda (expr) expr))
+	(define quotate (lambda (expr) (cadr expr)))
 
 	;; Assignment expression
 	;;----------------------------------------------------------------------------------------------
@@ -223,8 +222,8 @@
 			((self? expr) expr)
 			((variable? expr) ((env 'get) expr))
 			((quoted? expr) (quotate expr))
-			((assignment? expr) (eval-assignment expr env) 'done)
-			((definition? expr) (eval-definition expr env) 'done)
+			((assignment? expr) (eval-assignment expr env) '()) ; return null
+			((definition? expr) (eval-definition expr env) '())
 			((if? expr) (eval-if expr env))
 			((lambda? expr) 
 				(make-function
