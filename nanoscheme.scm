@@ -401,8 +401,6 @@
 	(((core 'environment) 'define) 'cdddar cdddar)
 	(((core 'environment) 'define) 'cddddr cddddr)
 
-	(((core 'environment) 'define) 'map map)
-
 	((core 'eval) 
 		'(define cond (macro (...) 
 			(define cond (lambda (stmts)
