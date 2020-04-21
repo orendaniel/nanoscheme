@@ -29,34 +29,42 @@
 			((eqv? (caar lst) name) (fn lst))
 			(else (find-on-list (cdr lst) name fn op prms)))))
 
-	(define look-if-defined? (lambda (lst name)
+	(define defined? (lambda (lst name)
 		(cond
 			((null? lst) #f)
 			((eqv? (caar lst) name) #t)
-			(else (look-if-defined? (cdr lst) name)))))
+			(else (defined? (cdr lst) name)))))
 
 	;; Hash function
-	(define hash (lambda (sym)
-		(modulo (string-length (symbol->string sym)) cells-count)))
+	(define hash (lambda (name)
+		(if (symbol? name)
+			(modulo (string-length (symbol->string name)) cells-count)
+			(modulo (string-length (symbol->string (quote name))) cells-count))))
 
 	;; Definer
 	(define dict-define! (lambda (name value)
-		(if (not (look-if-defined? (vector-ref dict (hash name)) name))
-			(set! 
-				(vector-ref dict (hash name)) 
-				(cons (cons name value) (vector-ref dict (hash name))))
-			(error "cannot redefine")))) ; dont allow to redefine in the same scope
+		(if (not (defined? (vector-ref dict (hash name)) name))
+			(begin 
+				(set! 
+					(vector-ref dict (hash name)) 
+					(cons (cons name value) (vector-ref dict (hash name))))
+				"defined")
+			"cannot redefine"))) ; dont allow to redefine in the same scope
 
 	;; Setter
 	(define dict-set! (lambda (name value)
 		(let ((cell (vector-ref dict (hash name))))
-			(find-on-list cell name (lambda (lst) (set-cdr! (car lst) value))
-				'set! (list name value)))))
+			(if
+				(eqv? (find-on-list cell 
+							name 
+							(lambda (lst) (set-cdr! (car lst) value))
+							'set! (list name value)) '())
+					"cannot set undefined variable"
+					"setted"))))
+
 	;; Getter
 	(define dict-get (lambda (name)
-		(if (symbol? name)
-			(find-on-list (vector-ref dict (hash name)) name cdar 'get (list name))
-			'())))
+		(find-on-list (vector-ref dict (hash name)) name cdar 'get (list name))))
 
 	(lambda (cmd)
 		(cond
@@ -222,8 +230,8 @@
 			((self? expr) expr)
 			((variable? expr) ((env 'get) expr))
 			((quoted? expr) (quotate expr))
-			((assignment? expr) (eval-assignment expr env) '()) ; return null
-			((definition? expr) (eval-definition expr env) '())
+			((assignment? expr) (eval-assignment expr env))
+			((definition? expr) (eval-definition expr env))
 			((if? expr) (eval-if expr env))
 			((lambda? expr) 
 				(make-function
@@ -262,6 +270,7 @@
 	((env 'define) 'empty-environment (lambda () (make-environment '())))
 
 	((evaluator 'eval) '(define evaluate (macro (expr) (eval expr _env))) env)
+	((evaluator 'eval) '(define quote (macro (expr) (cons 'quote expr))) env)
 
 	(lambda (cmd)
 		(cond 
