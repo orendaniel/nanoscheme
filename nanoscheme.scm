@@ -340,7 +340,6 @@
 
 	(((core 'environment) 'define) 'display (lambda (text) (display text) '()))
 	(((core 'environment) 'define) 'read read)
-	(((core 'environment) 'define) 'error error)
 	(((core 'environment) 'define) 'exit exit)
 
 	((core 'eval)
