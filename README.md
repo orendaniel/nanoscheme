@@ -1,6 +1,6 @@
 # nanoscheme
 
-Scheme evaluator library written in scheme.
+Scheme meta circular evaluator / evaluator library.
 
 
 Nanoscheme is tested on chicken scheme 5.
