@@ -5,6 +5,7 @@
 (define nscm (nanoscheme-full))
 
 (define (repl)
+	(display ">>")
 	(display ((nscm 'eval) (read)))
 	(newline)
 	(repl))
