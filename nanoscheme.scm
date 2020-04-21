@@ -37,16 +37,13 @@
 
 	;; Hash function
 	(define hash (lambda (name)
-		(if (symbol? name)
-			(modulo (string-length (symbol->string name)) cells-count)
-			(modulo (string-length (symbol->string (quote name))) cells-count))))
+		(modulo (string-length (symbol->string name)) cells-count)))
 
 	;; Definer
 	(define dict-define! (lambda (name value)
 		(if (not (defined? (vector-ref dict (hash name)) name))
 			(begin 
-				(set! 
-					(vector-ref dict (hash name)) 
+				(vector-set! dict (hash name)
 					(cons (cons name value) (vector-ref dict (hash name))))
 				"defined")
 			"cannot redefine"))) ; dont allow to redefine in the same scope
@@ -68,7 +65,7 @@
 
 	(lambda (cmd)
 		(cond
-			((eqv? cmd 'dump) (display dict) (newline))
+			((eqv? cmd 'dump) (display dict) (newline) '())
 			((eqv? cmd 'define) dict-define!)
 			((eqv? cmd 'set!) dict-set!)
 			((eqv? cmd 'get) dict-get)))))
@@ -243,13 +240,15 @@
 					(body expr) env))
 			((call? expr)
 				(let ((prc (_eval (operator expr) env)))
-					(if (function? prc)
-						(_apply 
-							prc
-							(eval-eager-operands (operands expr) env))
-						(_eval (_apply 
-							prc
-							(eval-lazy-operands (operands expr) env)) env))))
+					(if (not (null? prc))
+						(if (function? prc)
+							(_apply 
+								prc
+								(eval-eager-operands (operands expr) env))
+							(_eval (_apply 
+								prc
+								(eval-lazy-operands (operands expr) env)) env))
+						'())))
 
 			(else "unknown expression"))))
 
@@ -270,7 +269,6 @@
 	((env 'define) 'empty-environment (lambda () (make-environment '())))
 
 	((evaluator 'eval) '(define evaluate (macro (expr) (eval expr _env))) env)
-	((evaluator 'eval) '(define quote (macro (expr) (cons 'quote expr))) env)
 
 	(lambda (cmd)
 		(cond 
@@ -338,6 +336,7 @@
 	(((core 'environment) 'define) 'make-vector make-vector)
 	(((core 'environment) 'define) 'vector-length vector-length)
 	(((core 'environment) 'define) 'vector-ref vector-ref)
+	(((core 'environment) 'define) 'vector-set! vector-set!)
 
 	(((core 'environment) 'define) 'display (lambda (text) (display text) '()))
 	(((core 'environment) 'define) 'read read)
@@ -348,7 +347,7 @@
 		'(define and (macro (...)
 			(define and (lambda (stmts)
 				(if (null? stmts)
-					#t  
+					#t
 					(list 'if (car stmts) (and (cdr stmts)) #f))))
 			(and ...))))
 	
