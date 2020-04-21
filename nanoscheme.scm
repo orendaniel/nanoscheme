@@ -71,7 +71,7 @@
 			((eqv? cmd 'get) dict-get)))))
 
 ;;; Evaluator
-(define (make-evaluator)
+(define make-evaluator (lambda ()
 
 	;; Basic expressions 
 	;;----------------------------------------------------------------------------------------------
@@ -255,7 +255,7 @@
 	(lambda (cmd)
 		(cond
 			((eqv? cmd 'eval) _eval)
-			((eqv? cmd 'apply) _apply))))
+			((eqv? cmd 'apply) _apply)))))
 
 ;; Nanoscheme core
 ;;--------------------------------------------------------------------------------------------------
