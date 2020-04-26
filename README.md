@@ -32,13 +32,14 @@ Most notable deviations are:
 
 Many standard scheme features can be implemented with a macros.
 
-For example implementation of cond
+For example implementation of OR:
 
-(define cond (macro (...) 
-	(define cond (lambda (stmts)
+(define or (macro (...)
+	(define or (lambda (stmts)
 		(if (null? stmts)
-		''()
-		(list 'if (car (car stmts)) (list (append '(lambda ()) (cdr (car stmts)))) (cond (cdr stmts))))))
-	(cond ...)))
+			#f
+			(if ,(car stmts)
+				#t
+				(or (cdr stmts))))))
+	(or ...)))
 
-The function cond returns an S-expression of "cond->if" in a new scope which is passed to the evaluator.

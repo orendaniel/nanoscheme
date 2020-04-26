@@ -90,6 +90,10 @@
 
 	(define quotate (lambda (expr) (cadr expr)))
 
+	(define unquoted? (lambda (expr) (eqv? (car expr) 'unquote)))
+
+	(define unquotate (lambda (expr env) (_eval (_eval (cadr expr) env) env)))
+
 	;; Assignment expression
 	;;----------------------------------------------------------------------------------------------
 
@@ -214,12 +218,7 @@
 				(_eval (car lst) env)
 				(eval-eager-operands (cdr lst) env)))))
 
-	(define eval-lazy-operands (lambda (lst env)
-		(if (null? lst)
-			'()
-			(cons
-				(car lst)
-				(eval-lazy-operands (cdr lst) env)))))
+	(define eval-literal-operands (lambda (lst env) lst))
 
 	(define _eval (lambda (expr env)
 		(cond
@@ -227,6 +226,7 @@
 			((self? expr) expr)
 			((variable? expr) ((env 'get) expr))
 			((quoted? expr) (quotate expr))
+			((unquoted? expr) (unquotate expr env))
 			((assignment? expr) (eval-assignment expr env))
 			((definition? expr) (eval-definition expr env))
 			((if? expr) (eval-if expr env))
@@ -245,9 +245,9 @@
 							(_apply 
 								prc
 								(eval-eager-operands (operands expr) env))
-							(_eval (_apply 
+							(_apply 
 								prc
-								(eval-lazy-operands (operands expr) env)) env))
+								(eval-literal-operands (operands expr) env)))
 						'())))
 
 			(else "unknown expression"))))
@@ -268,18 +268,36 @@
 	((env 'define) 'apply (evaluator 'apply))
 	((env 'define) 'empty-environment (lambda () (make-environment '())))
 
-	((evaluator 'eval) '(define evaluate (macro (expr) (eval expr _env))) env)
-
 	(lambda (cmd)
 		(cond 
 			((eqv? cmd 'environment) env)
 			((eqv? cmd 'eval)
 				(lambda (expr) ((evaluator 'eval) expr env)))))))
 
-;; Regular Environment
+;; Lightweight Environment
 ;;--------------------------------------------------------------------------------------------------
 (define nanoscheme (lambda ()
 	(define core (nanoscheme-core))
+
+	((core 'eval) 
+		'(define or (macro (...)
+			(define or (lambda (stmts)
+				(if (null? stmts)
+					#f
+					(if ,(car stmts)
+						#t
+						(or (cdr stmts))))))
+			(or ...))))
+
+	((core 'eval) 
+		'(define and (macro (...)
+			(define and (lambda (stmts)
+				(if (null? stmts)
+					#t
+					(if ,(car stmts)
+						(and (cdr stmts))
+						#f))))
+			(and ...))))
 	
 	(((core 'environment) 'define) 'car car)
 	(((core 'environment) 'define) 'cdr cdr)
@@ -342,28 +360,40 @@
 	(((core 'environment) 'define) 'read read)
 	(((core 'environment) 'define) 'exit exit)
 
-	((core 'eval)
-		'(define and (macro (...)
-			(define and (lambda (stmts)
-				(if (null? stmts)
-					#t
-					(list 'if (car stmts) (and (cdr stmts)) #f))))
-			(and ...))))
-	
-	((core 'eval)
-		'(define or (macro (...)
-			(define or (lambda (stmts)
-				(if (null? stmts)
-					#f
-					(list 'if (car stmts) (or (cdr stmts)) #t))))
-			(or ...))))
-
 	core))
 
 ;; Full Scheme Environment
 ;;--------------------------------------------------------------------------------------------------
 (define nanoscheme-full (lambda ()
 	(define core (nanoscheme))
+
+	((core 'eval)
+		'(define map (lambda (prc lst)
+			(if (null? lst)
+				'()
+				(cons (prc (car lst)) (map prc (cdr lst)))))))
+
+	((core 'eval) 
+		'(define begin (macro (...)
+			,(cons (append '(lambda ()) ...) '()))))
+
+	((core 'eval)
+		'(define cond (macro (...)
+			(define cond (lambda (stmts)
+				(if (null? stmts)
+					'()
+					(if ,(caar stmts)
+						,(cons (append '(lambda ()) (cdar stmts)) '())
+						(cond (cdr stmts))))))
+			(cond ...))))
+
+	((core 'eval)
+		'(define let (macro (tuples ...)
+			,(append 
+				(cons (append 
+					(append '(lambda) (cons (map car tuples) '())) 
+					...) '()) 
+				(map cadr tuples)))))
 
 	(((core 'environment) 'define) 'string-fill! string-fill!)
 	(((core 'environment) 'define) 'vector-fill! vector-fill!)
@@ -407,22 +437,5 @@
 	(((core 'environment) 'define) 'cddadr cddadr)
 	(((core 'environment) 'define) 'cdddar cdddar)
 	(((core 'environment) 'define) 'cddddr cddddr)
-
-	((core 'eval) 
-		'(define cond (macro (...) 
-			(define cond (lambda (stmts)
-				(if (null? stmts)
-				''()
-				(list 'if (car (car stmts)) (list (append '(lambda ()) (cdr (car stmts)))) (cond (cdr stmts))))))
-		(cond ...))))
-		
-
-	((core 'eval)
-		'(define begin (macro (...)
-			(list (append '(lambda ()) ...)))))
-
-	((core 'eval)
-		'(define let (macro (tuples ...)
-			(append (list (append (append '(lambda) (list (map car tuples))) ...)) (map cadr tuples)))))
 
 	core))
