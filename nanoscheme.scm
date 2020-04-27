@@ -131,6 +131,8 @@
 	;; Function creation expression
 	;;----------------------------------------------------------------------------------------------
 
+	
+
 	(define lambda? (lambda (expr) (eqv? (car expr) 'lambda)))
 
 	(define macro? (lambda (expr) (eqv? (car expr) 'macro)))
@@ -215,6 +217,13 @@
 		(if (_eval (if-predicate expr) env)
 			(_eval (if-consequent expr) env)
 			(_eval (if-alternative expr) env))))
+	
+	(define eval-parameters (lambda (params env)
+		(cond
+			((null? params) '())
+			((symbol? (car params)) 
+				(cons (car params) (eval-parameters (cdr params) env)))
+			(else (eval-parameters (cons (_eval (car params) env) (cdr params)) env)))))
 
 	(define eval-eager-operands (lambda (lst env)
 		(if (null? lst)
@@ -237,11 +246,11 @@
 			((if? expr) (eval-if expr env))
 			((lambda? expr) 
 				(make-function
-					(parameters expr)
+					(eval-parameters (parameters expr) env)
 					(body expr) env))
 			((macro? expr) 
 				(make-macro
-					(parameters expr)
+					(eval-parameters (parameters expr) env)
 					(body expr) env))
 			((call? expr)
 				(let ((prc (_eval (operator expr) env)))
