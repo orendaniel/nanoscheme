@@ -28,6 +28,21 @@ Most notable deviations are:
 
 - the call of non defined variables returns '()
 
+- anonymous functions can be recursive with recall keyword
+
+- unqoute (,) causes the expression ,expr to be passed in to the evaluator
+  with the current lexical scope thus, literally unqouting the expression
+
+- the current lexical environment is accessible with _env keyword
+
+- define, set!, lambda, macro will recursively evaluate the name (for define and set!)
+  or the parameters list (for lambda macro) until a symbol is reached.
+
+
+# TODO
+
+REWRITE EVERYTHING REGARDING MACROS
+
 # Macro Example
 
 Many standard scheme features can be implemented with a macros.

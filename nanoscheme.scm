@@ -195,6 +195,7 @@
 			(else
 				(let ((env (make-environment (procedure-env operator))))
 					((env 'define) '_env env)
+					((env 'define) 'recall operator)
 
 					(init-parameters (procedure-parameters operator) operands env)
 					(sequence-eval (procedure-body operator) env))))))
