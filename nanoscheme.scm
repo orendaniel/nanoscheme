@@ -200,11 +200,16 @@
 	;; Eval
 	;;----------------------------------------------------------------------------------------------
 
+	(define eval-name (lambda (expr env)
+		(if (symbol? expr)
+			expr
+			(eval-name (_eval expr env) env))))
+
 	(define eval-assignment (lambda (expr env)
-		((env 'set!) (assignment-name expr) (_eval (assignment-value expr) env))))
+		((env 'set!) (eval-name (assignment-name expr) env) (_eval (assignment-value expr) env))))
 
 	(define eval-definition (lambda (expr env)
-			((env 'define) (definition-name expr) (_eval (definition-value expr) env))))
+		((env 'define) (eval-name (definition-name expr) env) (_eval (definition-value expr) env))))
 
 	(define eval-if (lambda (expr env)
 		(if (_eval (if-predicate expr) env)
