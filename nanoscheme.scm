@@ -107,6 +107,8 @@
 	;; Definition expression
 	;;----------------------------------------------------------------------------------------------
 
+	(define macro-sign "&")
+
 	(define definition? (lambda (expr) 
 		(and (eqv? (car expr) 'define) (symbol? (car expr)))))
 
@@ -172,14 +174,16 @@
 	;; Apply
 	;;----------------------------------------------------------------------------------------------
 
-	(define init-parameters (lambda (prms args env)
+	(define init-parameters (lambda (prms args env prefix)
 		(if (and (null? prms) (null? args))
 			'()
 			(if (eqv? (car prms) '...)
-				((env 'define) '... args)
+				((env 'define) (string->symbol (string-append prefix "...")) args)
 				(begin 
-					((env 'define) (car prms) (car args))
-					(init-parameters (cdr prms) (cdr args) env))))))
+					((env 'define) 
+						(string->symbol (string-append prefix (symbol->string (car prms))) )
+						(car args))
+					(init-parameters (cdr prms) (cdr args) env prefix))))))
 
 	(define sequence-eval (lambda (exprs env)
 		(if (not (null? (cdr exprs)))
@@ -195,9 +199,12 @@
 			(else
 				(let ((env (make-environment (procedure-env operator))))
 					((env 'define) '_env env)
-					((env 'define) 'recall operator)
-
-					(init-parameters (procedure-parameters operator) operands env)
+					((env 'define) 'callback operator)
+					
+					(init-parameters (procedure-parameters operator) operands env
+						(if (or (macro-function? operator) (eqv? ((env 'get) '&) #t)) 
+							(begin ((env 'define) '& #t) "&") 
+							""))
 					(sequence-eval (procedure-body operator) env))))))
 					
 	;; Eval
@@ -212,7 +219,9 @@
 		((env 'set!) (eval-name (assignment-name expr) env) (_eval (assignment-value expr) env))))
 
 	(define eval-definition (lambda (expr env)
-		((env 'define) (eval-name (definition-name expr) env) (_eval (definition-value expr) env))))
+		(if (eqv? (string-ref (symbol->string (definition-name expr)) 0) #\&)
+			"invalid name"
+			((env 'define) (eval-name (definition-name expr) env) (_eval (definition-value expr) env)))))
 
 	(define eval-if (lambda (expr env)
 		(if (_eval (if-predicate expr) env)
@@ -229,9 +238,7 @@
 	(define eval-eager-operands (lambda (lst env)
 		(if (null? lst)
 			'()
-			(cons
-				(_eval (car lst) env)
-				(eval-eager-operands (cdr lst) env)))))
+			(cons (_eval (car lst) env) (eval-eager-operands (cdr lst) env)))))
 
 	(define eval-literal-operands (lambda (lst env) lst))
 
@@ -257,12 +264,8 @@
 				(let ((prc (_eval (operator expr) env)))
 					(if (not (null? prc))
 						(if (function? prc)
-							(_apply 
-								prc
-								(eval-eager-operands (operands expr) env))
-							(_apply 
-								prc
-								(eval-literal-operands (operands expr) env)))
+							(_apply prc (eval-eager-operands (operands expr) env))
+							(_apply prc (eval-literal-operands (operands expr) env)))
 						'())))
 
 			(else "unknown expression"))))
@@ -296,23 +299,21 @@
 
 	((core 'eval) 
 		'(define or (macro (...)
-			(define or (lambda (stmts)
-				(if (null? stmts)
+			((lambda (stmts)
+				(if (null? &stmts)
 					#f
-					(if ,(car stmts)
+					(if ,(car &stmts)
 						#t
-						(or (cdr stmts))))))
-			(or ...))))
+						(callback (cdr &stmts))))) &...))))
 
 	((core 'eval) 
 		'(define and (macro (...)
-			(define and (lambda (stmts)
-				(if (null? stmts)
+			((lambda (stmts)
+				(if (null? &stmts)
 					#t
-					(if ,(car stmts)
-						(and (cdr stmts))
-						#f))))
-			(and ...))))
+					(if ,(car &stmts)
+						(callback (cdr &stmts))
+						#f))) &...))))
 	
 	(((core 'environment) 'define) 'car car)
 	(((core 'environment) 'define) 'cdr cdr)
@@ -366,6 +367,8 @@
 	(((core 'environment) 'define) 'make-string make-string)
 	(((core 'environment) 'define) 'string-length string-length)
 	(((core 'environment) 'define) 'string-ref string-ref)
+	(((core 'environment) 'define) 'string-set! string-set!)
+	(((core 'environment) 'define) 'string-append string-append)
 	(((core 'environment) 'define) 'make-vector make-vector)
 	(((core 'environment) 'define) 'vector-length vector-length)
 	(((core 'environment) 'define) 'vector-ref vector-ref)
@@ -390,25 +393,28 @@
 
 	((core 'eval) 
 		'(define begin (macro (...)
-			,(cons (append '(lambda ()) ...) '()))))
+			,(cons (append '(lambda ()) &...) '()))))
 
 	((core 'eval)
 		'(define cond (macro (...)
-			(define cond (lambda (stmts)
-				(if (null? stmts)
+			(define else #t)
+			((lambda (stmts)
+				(if (null? &stmts)
 					'()
-					(if ,(caar stmts)
-						,(cons (append '(lambda ()) (cdar stmts)) '())
-						(cond (cdr stmts))))))
-			(cond ...))))
+					(if ,(caar &stmts)
+						,(cons (append '(lambda ()) (cdar &stmts)) '())
+						(callback (cdr &stmts))))) &...))))
 
 	((core 'eval)
 		'(define let (macro (tuples ...)
+			(set! & #f)
 			,(append 
 				(cons (append 
-					(append '(lambda) (cons (map car tuples) '())) 
-					...) '()) 
-				(map cadr tuples)))))
+					(append '(lambda) (cons 
+						(map car &tuples)
+						'()))
+					&...) '()) 
+				(map cadr &tuples)))))
 
 	(((core 'environment) 'define) 'string-fill! string-fill!)
 	(((core 'environment) 'define) 'vector-fill! vector-fill!)
@@ -426,7 +432,6 @@
 	(((core 'environment) 'define) 'cadr cadr)
 	(((core 'environment) 'define) 'cdar cdar)
 	(((core 'environment) 'define) 'cddr cddr)
-
 	(((core 'environment) 'define) 'caaar caaar)
 	(((core 'environment) 'define) 'caadr caadr)
 	(((core 'environment) 'define) 'cadar cadar)
@@ -435,7 +440,6 @@
 	(((core 'environment) 'define) 'cdadr cdadr)
 	(((core 'environment) 'define) 'cddar cddar)
 	(((core 'environment) 'define) 'cdddr cdddr)
-
 	(((core 'environment) 'define) 'caaaar caaaar)
 	(((core 'environment) 'define) 'caaadr caaadr)
 	(((core 'environment) 'define) 'caadar caadar)

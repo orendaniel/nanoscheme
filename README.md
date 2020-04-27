@@ -28,7 +28,7 @@ Most notable deviations are:
 
 - the call of non defined variables returns '()
 
-- anonymous functions can be recursive with recall keyword
+- anonymous functions can be recursive with callback keyword
 
 - unqoute (,) causes the expression ,expr to be passed in to the evaluator
   with the current lexical scope thus, literally unqouting the expression
