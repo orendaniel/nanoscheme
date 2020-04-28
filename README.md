@@ -16,6 +16,31 @@ These modifications most of the time are trivial.
 
 ((nscm 'eval) '(display "A"))
 
+# Keysymbols
+
+- quote
+
+- unquoute
+
+- set!
+
+- define
+
+- if
+
+- lambda
+
+- macro
+
+- macro.
+
+- &
+
+- @
+
+- ...
+
+
 # Deviation from RnRS
 
 Nanoscheme doesn't follow any of the RnRS standard!
@@ -28,33 +53,21 @@ Most notable deviations are:
 
 - the call of non defined variables returns '()
 
-- anonymous functions can be recursive with callback keyword
+- anonymous functions can be recursive with @ keysymbol
 
 - unqoute (,) causes the expression ,expr to be passed in to the evaluator
   with the current lexical scope thus, literally unqouting the expression
 
-- the current lexical environment is accessible with _env keyword
-
 - define, set!, lambda, macro will recursively evaluate the name (for define and set!)
   or the parameters list (for lambda macro) until a symbol is reached.
 
+- macro and macro. keysymbol
+
+- variadic functions with the ... keysymbol
 
 # TODO
 
-REWRITE EVERYTHING REGARDING MACROS
+- Write about the new macro system 
 
-# Macro Example
-
-Many standard scheme features can be implemented with a macros.
-
-For example implementation of OR:
-
-(define or (macro (...)
-	(define or (lambda (stmts)
-		(if (null? stmts)
-			#f
-			(if ,(car stmts)
-				#t
-				(or (cdr stmts))))))
-	(or ...)))
+- Better hash function
 
