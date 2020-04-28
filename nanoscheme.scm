@@ -72,17 +72,32 @@
 
 ;;; Evaluator
 (define make-evaluator (lambda ()
-
-	(define guard-symbol '&)
+	(define s-quote 'quote)
+	(define s-unquote 'unquote)
+	(define s-set! 'set!) ; the syntatic keyword NOT the operation for environments
+	(define s-define 'define)
+	(define s-if 'if)
+	(define s-lambda 'lambda)
+	(define s-macro 'macro)
+	(define s-dotted-macro 'macro.)
+	(define s-guard '&)
+	(define s-callback '@)
+	(define s-variadic '...)
 
 	(define guarded-symbol? (lambda (sym)
-		(eqv? (string-ref (symbol->string sym) 0) (string-ref (symbol->string guard-symbol) 0))))
+		(eqv? (string-ref (symbol->string sym) 0) (string-ref (symbol->string s-guard) 0))))
+
+	(define keysymbol? (lambda (sym) 
+		(member sym (list s-quote s-unquote s-set! s-define s-if
+						s-lambda s-macro s-dotted-macro s-guard 
+						s-callback s-variadic))))
 
 	;; Basic expressions 
 	;;----------------------------------------------------------------------------------------------
 
 	(define self? (lambda (expr)
 		(or
+			(null? expr)
 			(char? expr)
 			(number? expr)
 			(string? expr)
@@ -91,11 +106,11 @@
 
 	(define variable? (lambda (expr) (symbol? expr)))
 
-	(define quoted? (lambda (expr) (eqv? (car expr) 'quote)))
+	(define quoted? (lambda (expr) (eqv? (car expr) s-quote)))
 
 	(define quotate (lambda (expr) (cadr expr)))
 
-	(define unquoted? (lambda (expr) (eqv? (car expr) 'unquote)))
+	(define unquoted? (lambda (expr) (eqv? (car expr) s-unquote)))
 
 	(define unquotate (lambda (expr env) (_eval (_eval (cadr expr) env) env)))
 
@@ -103,7 +118,7 @@
 	;;----------------------------------------------------------------------------------------------
 
 	(define assignment? (lambda (expr) 
-		(and (eqv? (car expr) 'set!) (symbol? (car expr)))))
+		(and (eqv? (car expr) s-set!) (symbol? (car expr)))))
 
 	(define assignment-name (lambda (expr) (cadr expr)))
 
@@ -113,7 +128,7 @@
 	;;----------------------------------------------------------------------------------------------
 
 	(define definition? (lambda (expr) 
-		(and (eqv? (car expr) 'define) (symbol? (car expr)))))
+		(and (eqv? (car expr) s-define) (symbol? (car expr)))))
 
 	(define definition-name (lambda (expr) (cadr expr)))
 
@@ -122,7 +137,7 @@
 	;; Conditional expression
 	;;----------------------------------------------------------------------------------------------
 
-	(define if? (lambda (expr) (eqv? (car expr) 'if)))
+	(define if? (lambda (expr) (eqv? (car expr) s-if)))
 
 	(define if-predicate (lambda (expr) (cadr expr)))
 
@@ -130,17 +145,18 @@
 
 	(define if-alternative (lambda (expr)
 		(if (not (null? (cdddr expr)))
-			(cadddr expr)
+			(car (cdddr expr))
 			'())))
 
 	;; Function creation expression
 	;;----------------------------------------------------------------------------------------------
 
-	(define lambda? (lambda (expr) (eqv? (car expr) 'lambda)))
+	(define lambda? (lambda (expr) (eqv? (car expr) s-lambda)))
 
-	(define macro? (lambda (expr) (or (eqv? (car expr) 'macro) (eqv? (car expr) 'macro@))))
+	(define macro? (lambda (expr)
+		(or (eqv? (car expr) s-macro) (eqv? (car expr) s-dotted-macro))))
 
-	(define guarded? (lambda (expr) (eqv? (car expr) 'macro)))
+	(define guarded? (lambda (expr) (eqv? (car expr) s-macro)))
 
 	(define parameters (lambda (expr) (cadr expr)))
 
@@ -166,13 +182,13 @@
 
 	(define macro-function? (lambda (prc) (eqv? (car prc) 'macro-function)))
 
-	(define guarded-macro? (lambda (mcr) (and (macro-function? mcr) (car (cddddr mcr)))))
+	(define guarded-macro? (lambda (mcr) (and (macro-function? mcr) (cadr (cdddr mcr)))))
 
 	(define procedure-body (lambda (prc) (caddr prc)))
 
 	(define procedure-parameters (lambda (prc) (cadr prc)))
 
-	(define procedure-env (lambda (prc) (cadddr prc)))
+	(define procedure-env (lambda (prc) (car (cdddr prc))))
 
 	;; Procedure Call Expression
 	;;----------------------------------------------------------------------------------------------
@@ -189,8 +205,9 @@
 	(define init-parameters (lambda (prms args env prefix)
 		(if (and (null? prms) (null? args))
 			'()
-			(if (eqv? (car prms) '...)
-				((env 'define) (string->symbol (string-append prefix "...")) args)
+			(if (eqv? (car prms) s-variadic)
+				((env 'define) 
+					(string->symbol (string-append prefix (symbol->string s-variadic))) args)
 				(begin 
 					((env 'define) 
 						(string->symbol (string-append prefix (symbol->string (car prms))) )
@@ -210,34 +227,34 @@
 				(apply operator operands))
 			(else
 				(let ((env (make-environment (procedure-env operator))))
-					((env 'define) 'callback operator)
+					((env 'define) s-callback operator)
 
 					(if (guarded-macro? operator)
-						((env 'define) guard-symbol #t))
+						((env 'define) s-guard #t))
 					
 					(init-parameters (procedure-parameters operator) operands env
-						(if (or (macro-function? operator) (eqv? ((env 'get) guard-symbol) #t)) 
-							(symbol->string guard-symbol) ""))
+						(if (or (macro-function? operator) (eqv? ((env 'get) s-guard) #t)) 
+							(symbol->string s-guard) ""))
 					(sequence-eval (procedure-body operator) env))))))
 					
 	;; Eval
 	;;----------------------------------------------------------------------------------------------
 
 	(define eval-name (lambda (expr env)
-		(if (symbol? expr)
+		(if (or (symbol? expr) (self? expr))
 			expr
 			(eval-name (_eval expr env) env))))
 
 	(define eval-assignment (lambda (expr env)
 		(let ((name (eval-name (assignment-name expr) env)))
-			(if (eqv? guard-symbol name)
-				"cannot mutate the macro guard status"
+			(if (keysymbol? name)
+				"cannot mutate the given variable"
 				((env 'set!) name (_eval (assignment-value expr) env))))))
 
 	(define eval-definition (lambda (expr env)
 		(let ((name (eval-name (definition-name expr) env)))
-			(if (guarded-symbol? name)
-				"cannot define a guarded variable"
+			(if (or (keysymbol? name) (guarded-symbol? name))
+				"cannot define variable for the given name"
 				((env 'define) name (_eval (definition-value expr) env))))))
 
 	(define eval-if (lambda (expr env)
@@ -248,7 +265,7 @@
 	(define eval-parameters (lambda (params env)
 		(cond
 			((null? params) '())
-			((symbol? (car params)) 
+			((or (symbol? (car params)) (self? (car params)))
 				(cons (car params) (eval-parameters (cdr params) env)))
 			(else (eval-parameters (cons (_eval (car params) env) (cdr params)) env)))))
 
@@ -261,7 +278,6 @@
 
 	(define _eval (lambda (expr env)
 		(cond
-			((null? expr) '())
 			((self? expr) expr)
 			((variable? expr) ((env 'get) expr))
 			((quoted? expr) (quotate expr))
@@ -284,7 +300,6 @@
 							(_apply prc (eval-eager-operands (operands expr) env))
 							(_apply prc (eval-literal-operands (operands expr) env)))
 						'())))
-
 			(else "unknown expression"))))
 
 	(lambda (cmd)
@@ -320,7 +335,7 @@
 					#f
 					(if ,(car &stmts)
 						#t
-						(callback (cdr &stmts))))) &...))))
+						(@ (cdr &stmts))))) &...))))
 
 	((core 'eval) 
 		'(define and (macro (...)
@@ -328,7 +343,7 @@
 				(if (null? &stmts)
 					#t
 					(if ,(car &stmts)
-						(callback (cdr &stmts))
+						(@ (cdr &stmts))
 						#f))) &...))))
 	
 	(((core 'environment) 'define) 'car car)
@@ -419,10 +434,10 @@
 					'()
 					(if ,(caar &stmts)
 						,(cons (append '(lambda ()) (cdar &stmts)) '())
-						(callback (cdr &stmts))))) &...))))
+						(@ (cdr &stmts))))) &...))))
 
 	((core 'eval)
-		'(define let (macro@ (tuples ...)
+		'(define let (macro. (tuples ...)
 			,(append 
 				(cons (append 
 					(append '(lambda) (cons 
@@ -456,21 +471,5 @@
 	(((core 'environment) 'define) 'cdadr cdadr)
 	(((core 'environment) 'define) 'cddar cddar)
 	(((core 'environment) 'define) 'cdddr cdddr)
-	(((core 'environment) 'define) 'caaaar caaaar)
-	(((core 'environment) 'define) 'caaadr caaadr)
-	(((core 'environment) 'define) 'caadar caadar)
-	(((core 'environment) 'define) 'caaddr caaddr)
-	(((core 'environment) 'define) 'cadaar cadaar)
-	(((core 'environment) 'define) 'cadadr cadadr)
-	(((core 'environment) 'define) 'caddar caddar)
-	(((core 'environment) 'define) 'cadddr cadddr)
-	(((core 'environment) 'define) 'cdaaar cdaaar)
-	(((core 'environment) 'define) 'cdaadr cdaadr)
-	(((core 'environment) 'define) 'cdadar cdadar)
-	(((core 'environment) 'define) 'cdaddr cdaddr)
-	(((core 'environment) 'define) 'cddaar cddaar)
-	(((core 'environment) 'define) 'cddadr cddadr)
-	(((core 'environment) 'define) 'cdddar cdddar)
-	(((core 'environment) 'define) 'cddddr cddddr)
 
 	core))
