@@ -70,19 +70,21 @@
 			((eqv? cmd 'set!) dict-set!)
 			((eqv? cmd 'get) dict-get)))))
 
+(define s-quote 'quote)
+(define s-unquote 'unquote)
+(define s-set! 'set!) ; the syntatic keyword NOT the operation for environments
+(define s-define 'define)
+(define s-if 'if)
+(define s-lambda 'lambda)
+(define s-macro 'macro)
+(define s-dotted-macro 'macro.)
+(define s-guard '&)
+(define s-callback '@)
+(define s-variadic '...)
+(define current-environment '_environment_)
+
 ;;; Evaluator
 (define make-evaluator (lambda ()
-	(define s-quote 'quote)
-	(define s-unquote 'unquote)
-	(define s-set! 'set!) ; the syntatic keyword NOT the operation for environments
-	(define s-define 'define)
-	(define s-if 'if)
-	(define s-lambda 'lambda)
-	(define s-macro 'macro)
-	(define s-dotted-macro 'macro.)
-	(define s-guard '&)
-	(define s-callback '@)
-	(define s-variadic '...)
 
 	(define guarded-symbol? (lambda (sym)
 		(eqv? (string-ref (symbol->string sym) 0) (string-ref (symbol->string s-guard) 0))))
@@ -90,7 +92,7 @@
 	(define keysymbol? (lambda (sym) 
 		(member sym (list s-quote s-unquote s-set! s-define s-if
 						s-lambda s-macro s-dotted-macro s-guard 
-						s-callback s-variadic))))
+						s-callback s-variadic current-environment))))
 
 	;; Basic expressions 
 	;;----------------------------------------------------------------------------------------------
@@ -228,7 +230,7 @@
 			(else
 				(let ((env (make-environment (procedure-env operator))))
 					((env 'define) s-callback operator)
-					((env 'define) '_environment_ env)
+					((env 'define) current-environment env)
 
 					(init-parameters (procedure-parameters operator) operands env
 						(if (eqv? ((env 'get) s-guard) #t)
@@ -237,7 +239,7 @@
 
 	(define _run (lambda (operator operands env)
 		((env 'define) s-callback operator)
-		((env 'define) '_environment_ env)
+		((env 'define) current-environment env)
 
 		(if (guarded-macro? operator)
 			((env 'define) s-guard #t))
@@ -322,7 +324,7 @@
 	(define env (make-environment '()))
 	(define evaluator (make-evaluator))
 
-	((env 'define) '_environment_ env)
+	;((env 'define) current-environment env)
 	((env 'define) 'eval (evaluator 'eval))
 	((env 'define) 'apply (evaluator 'apply))
 	((env 'define) 'run (evaluator 'run))

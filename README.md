@@ -40,6 +40,8 @@ These modifications most of the time are trivial.
 
 - ...
 
+- _environment_
+
 
 # Deviation from RnRS
 
