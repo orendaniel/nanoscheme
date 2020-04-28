@@ -73,6 +73,11 @@
 ;;; Evaluator
 (define make-evaluator (lambda ()
 
+	(define guard-symbol '&)
+
+	(define guarded-symbol? (lambda (sym)
+		(eqv? (string-ref (symbol->string sym) 0) (string-ref (symbol->string guard-symbol) 0))))
+
 	;; Basic expressions 
 	;;----------------------------------------------------------------------------------------------
 
@@ -107,8 +112,6 @@
 	;; Definition expression
 	;;----------------------------------------------------------------------------------------------
 
-	(define macro-sign "&")
-
 	(define definition? (lambda (expr) 
 		(and (eqv? (car expr) 'define) (symbol? (car expr)))))
 
@@ -133,21 +136,28 @@
 	;; Function creation expression
 	;;----------------------------------------------------------------------------------------------
 
-	
-
 	(define lambda? (lambda (expr) (eqv? (car expr) 'lambda)))
 
-	(define macro? (lambda (expr) (eqv? (car expr) 'macro)))
+	(define macro? (lambda (expr) (or (eqv? (car expr) 'macro) (eqv? (car expr) 'macro@))))
+
+	(define guarded? (lambda (expr) (eqv? (car expr) 'macro)))
 
 	(define parameters (lambda (expr) (cadr expr)))
 
 	(define body (lambda (expr) (cddr expr)))
 
-	(define make-function (lambda (parameters body env)
-		(list 'function parameters body env)))
+	(define valid-parameters? (lambda (params)
+		(not (member #t (map guarded-symbol? params)))))
 
-	(define make-macro (lambda (parameters body env)
-		(list 'macro-function parameters body env)))
+	(define make-function (lambda (parameters body env)
+		(if (valid-parameters? parameters)
+			(list 'function parameters body env)
+			"invalid function")))
+
+	(define make-macro (lambda (parameters body env guarded)
+		(if (valid-parameters? parameters)
+			(list 'macro-function parameters body env guarded)
+			"invalid macro")))
 
 	;; Procedure handler
 	;;----------------------------------------------------------------------------------------------
@@ -155,6 +165,8 @@
 	(define function? (lambda (prc) (or (procedure? prc) (eqv? (car prc) 'function))))
 
 	(define macro-function? (lambda (prc) (eqv? (car prc) 'macro-function)))
+
+	(define guarded-macro? (lambda (mcr) (and (macro-function? mcr) (car (cddddr mcr)))))
 
 	(define procedure-body (lambda (prc) (caddr prc)))
 
@@ -198,13 +210,14 @@
 				(apply operator operands))
 			(else
 				(let ((env (make-environment (procedure-env operator))))
-					((env 'define) '_env env)
 					((env 'define) 'callback operator)
+
+					(if (guarded-macro? operator)
+						((env 'define) guard-symbol #t))
 					
 					(init-parameters (procedure-parameters operator) operands env
-						(if (or (macro-function? operator) (eqv? ((env 'get) '&) #t)) 
-							(begin ((env 'define) '& #t) "&") 
-							""))
+						(if (or (macro-function? operator) (eqv? ((env 'get) guard-symbol) #t)) 
+							(symbol->string guard-symbol) ""))
 					(sequence-eval (procedure-body operator) env))))))
 					
 	;; Eval
@@ -216,12 +229,16 @@
 			(eval-name (_eval expr env) env))))
 
 	(define eval-assignment (lambda (expr env)
-		((env 'set!) (eval-name (assignment-name expr) env) (_eval (assignment-value expr) env))))
+		(let ((name (eval-name (assignment-name expr) env)))
+			(if (eqv? guard-symbol name)
+				"cannot mutate the macro guard status"
+				((env 'set!) name (_eval (assignment-value expr) env))))))
 
 	(define eval-definition (lambda (expr env)
-		(if (eqv? (string-ref (symbol->string (definition-name expr)) 0) #\&)
-			"invalid name"
-			((env 'define) (eval-name (definition-name expr) env) (_eval (definition-value expr) env)))))
+		(let ((name (eval-name (definition-name expr) env)))
+			(if (guarded-symbol? name)
+				"cannot define a guarded variable"
+				((env 'define) name (_eval (definition-value expr) env))))))
 
 	(define eval-if (lambda (expr env)
 		(if (_eval (if-predicate expr) env)
@@ -259,7 +276,7 @@
 			((macro? expr) 
 				(make-macro
 					(eval-parameters (parameters expr) env)
-					(body expr) env))
+					(body expr) env (guarded? expr)))
 			((call? expr)
 				(let ((prc (_eval (operator expr) env)))
 					(if (not (null? prc))
@@ -281,7 +298,6 @@
 	(define env (make-environment '()))
 	(define evaluator (make-evaluator))
 
-	((env 'define) '_env env)
 	((env 'define) 'eval (evaluator 'eval))
 	((env 'define) 'apply (evaluator 'apply))
 	((env 'define) 'empty-environment (lambda () (make-environment '())))
@@ -406,8 +422,7 @@
 						(callback (cdr &stmts))))) &...))))
 
 	((core 'eval)
-		'(define let (macro (tuples ...)
-			(set! & #f)
+		'(define let (macro@ (tuples ...)
 			,(append 
 				(cons (append 
 					(append '(lambda) (cons 
@@ -424,6 +439,7 @@
 	(((core 'environment) 'define) 'list-ref list-ref)
 	(((core 'environment) 'define) 'reverse reverse)
 	(((core 'environment) 'define) 'append append)
+	(((core 'environment) 'define) 'member member)
 
 	(((core 'environment) 'define) 'list->vector list->vector)
 	(((core 'environment) 'define) 'vector->list vector->list)
