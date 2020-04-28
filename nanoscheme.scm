@@ -172,7 +172,7 @@
 
 	(define make-macro (lambda (parameters body env guarded)
 		(if (valid-parameters? parameters)
-			(list 'macro-function parameters body env guarded)
+			(list 'macro-function parameters body guarded)
 			"invalid macro")))
 
 	;; Procedure handler
@@ -182,7 +182,7 @@
 
 	(define macro-function? (lambda (prc) (eqv? (car prc) 'macro-function)))
 
-	(define guarded-macro? (lambda (mcr) (and (macro-function? mcr) (cadr (cdddr mcr)))))
+	(define guarded-macro? (lambda (mcr) (and (macro-function? mcr) (car (cdddr mcr)))))
 
 	(define procedure-body (lambda (prc) (caddr prc)))
 
@@ -199,7 +199,7 @@
 
 	(define operands (lambda (expr) (cdr expr)))
 
-	;; Apply
+	;; Apply and Run
 	;;----------------------------------------------------------------------------------------------
 
 	(define init-parameters (lambda (prms args env prefix)
@@ -228,15 +228,23 @@
 			(else
 				(let ((env (make-environment (procedure-env operator))))
 					((env 'define) s-callback operator)
+					((env 'define) '_environment_ env)
 
-					(if (guarded-macro? operator)
-						((env 'define) s-guard #t))
-					
 					(init-parameters (procedure-parameters operator) operands env
-						(if (or (macro-function? operator) (eqv? ((env 'get) s-guard) #t)) 
+						(if (eqv? ((env 'get) s-guard) #t)
 							(symbol->string s-guard) ""))
 					(sequence-eval (procedure-body operator) env))))))
-					
+
+	(define _run (lambda (operator operands env)
+		((env 'define) s-callback operator)
+		((env 'define) '_environment_ env)
+
+		(if (guarded-macro? operator)
+			((env 'define) s-guard #t))
+
+		(init-parameters (procedure-parameters operator) operands env (symbol->string s-guard))
+		(sequence-eval (procedure-body operator) env)))
+
 	;; Eval
 	;;----------------------------------------------------------------------------------------------
 
@@ -274,7 +282,7 @@
 			'()
 			(cons (_eval (car lst) env) (eval-eager-operands (cdr lst) env)))))
 
-	(define eval-literal-operands (lambda (lst env) lst))
+	(define eval-literal-operands (lambda (lst) lst))
 
 	(define _eval (lambda (expr env)
 		(cond
@@ -298,14 +306,15 @@
 					(if (not (null? prc))
 						(if (function? prc)
 							(_apply prc (eval-eager-operands (operands expr) env))
-							(_apply prc (eval-literal-operands (operands expr) env)))
+							(_run prc (eval-literal-operands (operands expr)) env))
 						'())))
 			(else "unknown expression"))))
 
 	(lambda (cmd)
 		(cond
 			((eqv? cmd 'eval) _eval)
-			((eqv? cmd 'apply) _apply)))))
+			((eqv? cmd 'apply) _apply)
+			((eqv? cmd 'run) _run)))))
 
 ;; Nanoscheme core
 ;;--------------------------------------------------------------------------------------------------
@@ -313,8 +322,10 @@
 	(define env (make-environment '()))
 	(define evaluator (make-evaluator))
 
+	((env 'define) '_environment_ env)
 	((env 'define) 'eval (evaluator 'eval))
 	((env 'define) 'apply (evaluator 'apply))
+	((env 'define) 'run (evaluator 'run))
 	((env 'define) 'empty-environment (lambda () (make-environment '())))
 
 	(lambda (cmd)
