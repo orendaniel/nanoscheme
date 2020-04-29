@@ -60,7 +60,7 @@ They also share the same environment with caller. Macros can be called with run 
 
 In order to avoid name capture, every macro parameter is prefix with & (a guard prefix).
 
-Macros can be deeply guarded (that is any function's parameters will also receive a prefix)
+Macros can be deeply guarded (that is any non macro function's parameters will also receive a prefix)
 or unguarded (that is only the macro's parameters will receive a prefix) with the dotted macro.
 
 As long as define is not used directly inside the macro, and the macro doesn't call 
