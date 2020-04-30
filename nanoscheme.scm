@@ -73,7 +73,7 @@
 (define s-quote 'quote)
 (define s-unquote 'unquote)
 (define s-set! 'set!) ; the syntatic keyword NOT the operation for environments
-(define s-define 'define)
+(define s-define 'define) ; same
 (define s-if 'if)
 (define s-lambda 'lambda)
 (define s-macro 'macro)
