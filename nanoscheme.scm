@@ -238,14 +238,16 @@
 					(sequence-eval (procedure-body operator) env))))))
 
 	(define _run (lambda (operator operands env)
-		((env 'define) s-callback operator)
-		((env 'define) current-environment env)
+		(let ((mcr-env (make-environment env)))
+			((mcr-env 'define) s-callback operator)
+			((mcr-env 'define) current-environment mcr-env)
 
-		(if (guarded-macro? operator)
-			((env 'define) s-guard #t))
+			(if (guarded-macro? operator)
+				((mcr-env 'define) s-guard #t))
 
-		(init-parameters (procedure-parameters operator) operands env (symbol->string s-guard))
-		(sequence-eval (procedure-body operator) env)))
+			(init-parameters 
+				(procedure-parameters operator) operands mcr-env (symbol->string s-guard))
+			(sequence-eval (procedure-body operator) mcr-env))))
 
 	;; Eval
 	;;----------------------------------------------------------------------------------------------
@@ -309,7 +311,7 @@
 						(if (function? prc)
 							(_apply prc (eval-eager-operands (operands expr) env))
 							(_run prc (eval-literal-operands (operands expr)) env))
-						'())))
+						"call of not a function")))
 			(else "unknown expression"))))
 
 	(lambda (cmd)
@@ -456,7 +458,7 @@
 					(append '(lambda) (cons 
 						(map car &tuples)
 						'()))
-					&...) '()) 
+					&...) '())
 				(map cadr &tuples)))))
 
 	(((core 'environment) 'define) 'string-fill! string-fill!)
