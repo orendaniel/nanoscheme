@@ -65,7 +65,6 @@
 
 	(lambda (cmd)
 		(cond
-			((eqv? cmd 'dump) (display dict) (newline) '())
 			((eqv? cmd 'define) dict-define!)
 			((eqv? cmd 'set!) dict-set!)
 			((eqv? cmd 'get) dict-get)))))
@@ -420,7 +419,7 @@
 	(((core 'environment) 'define) 'vector-ref vector-ref)
 	(((core 'environment) 'define) 'vector-set! vector-set!)
 
-	(((core 'environment) 'define) 'display (lambda (text) (display text) '()))
+	(((core 'environment) 'define) 'display (lambda (text) (display text) (newline) '()))
 	(((core 'environment) 'define) 'read read)
 	(((core 'environment) 'define) 'exit exit)
 
