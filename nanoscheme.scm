@@ -68,222 +68,215 @@
 			((eqv? cmd 'set) dict-set!)
 			((eqv? cmd 'get) dict-get)))))
 
-;;; Evaluator
-(define make-evaluator (lambda ()
 
-	;; Basic expressions 
-	;;----------------------------------------------------------------------------------------------
+;; Basic expressions 
+;;----------------------------------------------------------------------------------------------
 
-	(define self? (lambda (expr)
-		(or
-			(null? expr)
-			(char? expr)
-			(number? expr)
-			(string? expr)
-			(boolean? expr)
-			(vector? expr))))
+(define self? (lambda (expr)
+	(or
+		(null? expr)
+		(char? expr)
+		(number? expr)
+		(string? expr)
+		(boolean? expr)
+		(vector? expr))))
 
-	(define variable? (lambda (expr) (symbol? expr)))
+(define variable? (lambda (expr) (symbol? expr)))
 
-	(define quoted? (lambda (expr) (eqv? (car expr) 'quote)))
+(define quoted? (lambda (expr) (eqv? (car expr) 'quote)))
 
-	(define quotate (lambda (expr) (cadr expr)))
+(define quotate (lambda (expr) (cadr expr)))
 
-	(define unquoted? (lambda (expr) (eqv? (car expr) 'unquote)))
+(define unquoted? (lambda (expr) (eqv? (car expr) 'unquote)))
 
-	(define unquotate (lambda (expr env) (_eval (_eval (cadr expr) env) env)))
+(define unquotate (lambda (expr env) (_eval (_eval (cadr expr) env) env)))
 
-	;; Assignment expression
-	;;----------------------------------------------------------------------------------------------
+;; Assignment expression
+;;----------------------------------------------------------------------------------------------
 
-	(define assignment? (lambda (expr) 
-		(and (eqv? (car expr) 'set) (symbol? (car expr)))))
+(define assignment? (lambda (expr) 
+	(and (eqv? (car expr) 'set) (symbol? (car expr)))))
 
-	(define assignment-name (lambda (expr) (cadr expr)))
+(define assignment-name (lambda (expr) (cadr expr)))
 
-	(define assignment-value (lambda (expr) (caddr expr)))
+(define assignment-value (lambda (expr) (caddr expr)))
 
-	;; Definition expression
-	;;----------------------------------------------------------------------------------------------
+;; Definition expression
+;;----------------------------------------------------------------------------------------------
 
-	(define definition? (lambda (expr) 
-		(and (eqv? (car expr) 'define) (symbol? (car expr)))))
+(define definition? (lambda (expr) 
+	(and (eqv? (car expr) 'define) (symbol? (car expr)))))
 
-	(define definition-name (lambda (expr) (cadr expr)))
+(define definition-name (lambda (expr) (cadr expr)))
 
-	(define definition-value (lambda (expr) (caddr expr)))
+(define definition-value (lambda (expr) (caddr expr)))
 
-	;; Conditional expression
-	;;----------------------------------------------------------------------------------------------
+;; Conditional expression
+;;----------------------------------------------------------------------------------------------
 
-	(define if? (lambda (expr) (eqv? (car expr) 'if)))
+(define if? (lambda (expr) (eqv? (car expr) 'if)))
 
-	(define if-predicate (lambda (expr) (cadr expr)))
+(define if-predicate (lambda (expr) (cadr expr)))
 
-	(define if-consequent (lambda (expr) (caddr expr)))
+(define if-consequent (lambda (expr) (caddr expr)))
 
-	(define if-alternative (lambda (expr)
-		(if (not (null? (cdddr expr)))
-			(car (cdddr expr))
-			'())))
+(define if-alternative (lambda (expr)
+	(if (not (null? (cdddr expr)))
+		(car (cdddr expr))
+		'())))
 
-	;; Function creation expression
-	;;----------------------------------------------------------------------------------------------
+;; Function creation expression
+;;----------------------------------------------------------------------------------------------
 
-	(define lambda? (lambda (expr) (eqv? (car expr) 'lambda)))
+(define lambda? (lambda (expr) (eqv? (car expr) 'lambda)))
 
-	(define macro? (lambda (expr) (eqv? (car expr) 'macro)))
+(define macro? (lambda (expr) (eqv? (car expr) 'macro)))
 
-	(define parameters (lambda (expr) (cadr expr)))
+(define parameters (lambda (expr) (cadr expr)))
 
-	(define body (lambda (expr) (cddr expr)))
+(define body (lambda (expr) (cddr expr)))
 
-	(define make-function (lambda (parameters body env)
-		(list 'FNC parameters body env)))
+(define make-function (lambda (parameters body env)
+	(list 'FNC parameters body env)))
 
-	(define make-macro (lambda (parameters body env)
-		(list 'MCR parameters body env)))
+(define make-macro (lambda (parameters body env)
+	(list 'MCR parameters body env)))
 
-	;; Procedure handler
-	;;----------------------------------------------------------------------------------------------
+;; Procedure handler
+;;----------------------------------------------------------------------------------------------
 
-	(define function? (lambda (prc) (or (procedure? prc) (eqv? (car prc) 'FNC))))
+(define function? (lambda (prc) (or (procedure? prc) (eqv? (car prc) 'FNC))))
 
-	(define macro-function? (lambda (prc) (eqv? (car prc) 'MCR)))
+(define macro-function? (lambda (prc) (eqv? (car prc) 'MCR)))
 
-	(define procedure-body (lambda (prc) (caddr prc)))
+(define procedure-body (lambda (prc) (caddr prc)))
 
-	(define procedure-parameters (lambda (prc) (cadr prc)))
+(define procedure-parameters (lambda (prc) (cadr prc)))
 
-	(define procedure-env (lambda (prc) (car (cdddr prc))))
+(define procedure-env (lambda (prc) (car (cdddr prc))))
 
-	;; Procedure Call Expression
-	;;----------------------------------------------------------------------------------------------
+;; Procedure Call Expression
+;;----------------------------------------------------------------------------------------------
 
-	(define call? (lambda (expr) (pair? expr)))
+(define call? (lambda (expr) (pair? expr)))
 
-	(define operator (lambda (expr) (car expr)))
+(define operator (lambda (expr) (car expr)))
 
-	(define operands (lambda (expr) (cdr expr)))
+(define operands (lambda (expr) (cdr expr)))
 
-	;; Apply
-	;;----------------------------------------------------------------------------------------------
+;; Apply
+;;----------------------------------------------------------------------------------------------
 
-	(define variadic? (lambda (prms)
-		(eqv? (car prms) '...)))
+(define variadic? (lambda (prms)
+	(eqv? (car prms) '...)))
 
-	(define init-parameters (lambda (prms args env)
-		(if (and (null? prms) (null? args))
-			'()
-			(if (variadic? prms)
-				(if (not (null? (cdr prms))) ((env 'def) (cadr prms) args))
-				(begin 
-					((env 'def) (car prms) (car args))
-					(init-parameters (cdr prms) (cdr args) env))))))
-
-	(define sequence-eval (lambda (exprs env)
-		(if (not (null? (cdr exprs)))
+(define init-parameters (lambda (prms args env)
+	(if (and (null? prms) (null? args))
+		'()
+		(if (variadic? prms)
+			(if (not (null? (cdr prms))) ((env 'def) (cadr prms) args))
 			(begin 
-				(_eval (car exprs) env)
-				(sequence-eval (cdr exprs) env))
-			(_eval (car exprs) env))))
+				((env 'def) (car prms) (car args))
+				(init-parameters (cdr prms) (cdr args) env))))))
 
-	(define _apply (lambda (operator operands)
-		(cond
-			((procedure? operator) ;;primitive procedure NOT user defined procedure
-				(apply operator operands))
+(define sequence-eval (lambda (exprs env)
+	(if (not (null? (cdr exprs)))
+		(begin 
+			(_eval (car exprs) env)
+			(sequence-eval (cdr exprs) env))
+		(_eval (car exprs) env))))
 
-			((or (function? operator) (macro-function? operator))
-				(let ((env (make-environment (procedure-env operator))))
+(define _apply (lambda (operator operands)
+	(cond
+		((procedure? operator) ;;primitive procedure NOT user defined procedure
+			(apply operator operands))
 
-					(init-parameters (procedure-parameters operator) operands env)
+		((or (function? operator) (macro-function? operator))
+			(let ((env (make-environment (procedure-env operator))))
 
-					(sequence-eval (procedure-body operator) env)))
+				(init-parameters (procedure-parameters operator) operands env)
 
-			(else (error "Cannot apply a non procedure")))))
-				
+				(sequence-eval (procedure-body operator) env)))
 
-	;; Eval
-	;;----------------------------------------------------------------------------------------------
+		(else (error "Cannot apply a non procedure")))))
+			
 
-	(define eval-name (lambda (expr env)
-		(if (or (symbol? expr) (self? expr))
-			expr
-			(eval-name (_eval expr env) env))))
+;; Eval
+;;----------------------------------------------------------------------------------------------
 
-	(define eval-assignment (lambda (expr env)
-		(let ((name (eval-name (assignment-name expr) env)))
-			((env 'set) name (_eval (assignment-value expr) env)))))
+(define eval-name (lambda (expr env)
+	(if (or (symbol? expr) (self? expr))
+		expr
+		(eval-name (_eval expr env) env))))
 
-	(define eval-definition (lambda (expr env)
-		(let ((name (eval-name (definition-name expr) env)))
-				((env 'def) name (_eval (definition-value expr) env)))))
+(define eval-assignment (lambda (expr env)
+	(let ((name (eval-name (assignment-name expr) env)))
+		((env 'set) name (_eval (assignment-value expr) env)))))
 
-	(define eval-if (lambda (expr env)
-		(if (_eval (if-predicate expr) env)
-			(_eval (if-consequent expr) env)
-			(_eval (if-alternative expr) env))))
-	
-	(define eval-parameters (lambda (params env)
-		(cond
-			((null? params) '())
-			((symbol? (car params))
-				(cons (car params) (eval-parameters (cdr params) env)))
-			(else (error "invalid parameters list given")))))
+(define eval-definition (lambda (expr env)
+	(let ((name (eval-name (definition-name expr) env)))
+			((env 'def) name (_eval (definition-value expr) env)))))
 
-	(define eval-eager-operands (lambda (lst env)
-		(if (null? lst)
-			'()
-			(cons (_eval (car lst) env) (eval-eager-operands (cdr lst) env)))))
+(define eval-if (lambda (expr env)
+	(if (_eval (if-predicate expr) env)
+		(_eval (if-consequent expr) env)
+		(_eval (if-alternative expr) env))))
 
-	(define eval-literal-operands (lambda (lst env) lst))
+(define eval-parameters (lambda (params env)
+	(cond
+		((null? params) '())
+		((symbol? (car params))
+			(cons (car params) (eval-parameters (cdr params) env)))
+		(else (error "invalid parameters list given")))))
 
-	(define _eval (lambda (expr env)
-		(cond
-			((self? expr) expr)
-			((variable? expr) ((env 'get) expr))
-			((quoted? expr) (quotate expr))
-			((unquoted? expr) (unquotate expr env))
-			((assignment? expr) (eval-assignment expr env))
-			((definition? expr) (eval-definition expr env))
-			((if? expr) (eval-if expr env))
-			((lambda? expr) 
-				(make-function
-					(eval-parameters (parameters expr) env)
-					(body expr) env))
-			((macro? expr) 
-				(make-macro
-					(eval-parameters (parameters expr) env)
-					(body expr) env))
-			((call? expr)
-				(let ((prc (_eval (operator expr) env)))
-					(if (not (null? prc))
-						(if (function? prc)
-							(_apply prc (eval-eager-operands (operands expr) env))
-							(_apply prc (eval-literal-operands (operands expr) env)))
-						(begin (display "call of not a function\n") '()))))
-			(else (error "unknown expression")))))
+(define eval-eager-operands (lambda (lst env)
+	(if (null? lst)
+		'()
+		(cons (_eval (car lst) env) (eval-eager-operands (cdr lst) env)))))
 
-	(lambda (cmd)
-		(cond
-			((eqv? cmd 'eval) _eval)
-			((eqv? cmd 'apply) _apply)))))
+(define eval-literal-operands (lambda (lst env) lst))
+
+(define _eval (lambda (expr env)
+	(cond
+		((self? expr) expr)
+		((variable? expr) ((env 'get) expr))
+		((quoted? expr) (quotate expr))
+		((unquoted? expr) (unquotate expr env))
+		((assignment? expr) (eval-assignment expr env))
+		((definition? expr) (eval-definition expr env))
+		((if? expr) (eval-if expr env))
+		((lambda? expr) 
+			(make-function
+				(eval-parameters (parameters expr) env)
+				(body expr) env))
+		((macro? expr) 
+			(make-macro
+				(eval-parameters (parameters expr) env)
+				(body expr) env))
+		((call? expr)
+			(let ((prc (_eval (operator expr) env)))
+				(if (not (null? prc))
+					(if (function? prc)
+						(_apply prc (eval-eager-operands (operands expr) env))
+						(_apply prc (eval-literal-operands (operands expr) env)))
+					(begin (display "call of not a function\n") '()))))
+		(else (error "unknown expression")))))
+
 
 ;; Nanoscheme core
 ;;--------------------------------------------------------------------------------------------------
 (define nanoscheme-core (lambda ()
 	(define env (make-environment '()))
-	(define evaluator (make-evaluator))
 
-	((env 'def) 'eval (evaluator 'eval))
-	((env 'def) 'apply (evaluator 'apply))
+	((env 'def) 'eval _eval)
+	((env 'def) 'apply _apply)
 	((env 'def) 'empty-environment (lambda () (make-environment '())))
 
 	(lambda (cmd)
 		(cond 
 			((eqv? cmd 'environment) env)
 			((eqv? cmd 'eval)
-				(lambda (expr) ((evaluator 'eval) expr env)))))))
+				(lambda (expr) (_eval expr env)))))))
 
 ;; Lightweight Environment
 ;;--------------------------------------------------------------------------------------------------
