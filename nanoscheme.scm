@@ -34,7 +34,8 @@
 			(cond
 				((null? lst) 
 					(if (null? outer) 
-						(begin (display "cannot set undefined entry\n") '())
+					(begin (display "cannot set undefined entry - ") 
+						(display name) (newline) '())
 						((outer 'set) name value)))
 				((eqv? (caar lst) name) (set-cdr! (car lst) value) '())
 				(else (helper (cdr lst))))))
@@ -46,7 +47,8 @@
 			(if res
 				(cdr res)
 				(if (null? outer) 
-					(begin (display "cannot get undefined entry\n") '())
+					(begin (display "cannot get undefined entry - ") 
+						(display name) (newline) '())
 					((outer 'get) name))))))
 
 	(lambda (cmd)
@@ -73,11 +75,6 @@
 (define quoted? (lambda (expr) (eqv? (car expr) 'quote)))
 
 (define quotate (lambda (expr) (cadr expr)))
-
-(define unquoted? (lambda (expr) (eqv? (car expr) 'unquote)))
-
-(define unquotate (lambda (expr env)
-	(nanoscheme-eval (nanoscheme-eval (cadr expr) env) env)))
 
 ;; Assignment expression
 ;;----------------------------------------------------------------------------------------------
@@ -228,7 +225,6 @@
 		((self? expr) expr)
 		((variable? expr) ((env 'get) expr))
 		((quoted? expr) (quotate expr))
-		((unquoted? expr) (unquotate expr env))
 		((assignment? expr) (eval-assignment expr env))
 		((definition? expr) (eval-definition expr env))
 		((if? expr) (eval-if expr env))

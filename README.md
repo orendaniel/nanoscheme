@@ -25,7 +25,6 @@ Most notable deviations are:
 
 - variadic functions with the ... name
 
-# Macros
+# TODO
 
-the macro form -- (macro (parameter-list) body) returns a new macro function.
-When called it will evaluate the arguements literally.
+PROPERLY REWRITE THIS

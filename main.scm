@@ -113,57 +113,10 @@
 ((env 'def) 'cdddr cdddr)
 
 (nanoscheme-eval
-	'(define or (macro (... *or_STMTS*)
-		(define *or_HELPER* (lambda (*or_STMTS*)
-			(if (null? *or_STMTS*)
-				#f
-				(if ,(car *or_STMTS*)
-					#t
-					(*or_HELPER* (cdr *or_STMTS*)))))) 
-		(*or_HELPER* *or_STMTS*))) env)
-
-(nanoscheme-eval 
-	'(define and (macro (... *and_STMTS*)
-		(define *and_HELPER* (lambda (*and_STMTS*)
-			(if (null? *and_STMTS*)
-				#t
-				(if (not ,(car *and_STMTS*))
-					#f
-					(*and_HELPER* (cdr *and_STMTS*)))))) 
-		(*and_HELPER* *and_STMTS*))) env)
-
-
-(nanoscheme-eval
 	'(define map (lambda (prc lst)
 		(if (null? lst)
 			'()
 			(cons (prc (car lst)) (map prc (cdr lst)))))) env)
-
-(nanoscheme-eval 
-	'(define begin (macro (... *begin_PRM*)
-		,(cons (append (list 'lambda '()) *begin_PRM*) '()))) env)
-
-(nanoscheme-eval
-	'(define cond (macro (... *cond_STMTS*)
-		(define else #t)
-		(define *cond_HELPER* (lambda (*cond_STMTS*)
-			(if (null? *cond_STMTS*)
-				'()
-				(if ,(caar *cond_STMTS*)
-					,(cons (append '(lambda ()) (cdar *cond_STMTS*)) '())
-					(*cond_HELPER* (cdr *cond_STMTS*))))))
-
-		(*cond_HELPER* *cond_STMTS*))) env)
-
-(nanoscheme-eval
-	'(define let (macro (*let_TUPLES* ... *let_REST*)
-		,(append 
-			(cons (append 
-				(append '(lambda) (cons 
-					(map car *let_TUPLES*)
-					'()))
-				*let_REST*) '())
-			(map cadr *let_TUPLES*)))) env)
 
 (define (repl)
 	(display ">> ")
