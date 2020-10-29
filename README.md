@@ -8,14 +8,6 @@ It may or may not work unmodified on other scheme implementations.
 
 These modifications most of the time are trivial.
 
-# Basic Example:
-
-.. load nanoscheme.scm ..
-
-(define nscm (nanoscheme-full))
-
-((nscm 'eval) '(display "A"))
-
 # Deviation from RnRS
 
 Nanoscheme doesn't follow any of the RnRS standards!

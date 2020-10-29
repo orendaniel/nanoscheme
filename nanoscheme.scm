@@ -242,8 +242,10 @@
 				(body expr) env))
 		((call? expr)
 			(let ((prc (nanoscheme-eval (operator expr) env)))
-				(if (function? prc)
-					(nanoscheme-apply prc (eval-eager-operands (operands expr) env))
-					(nanoscheme-apply prc (eval-literal-operands (operands expr) env)))))
+				(if (not (null? prc))
+					(if (function? prc)
+						(nanoscheme-apply prc (eval-eager-operands (operands expr) env))
+						(nanoscheme-apply prc (eval-literal-operands (operands expr) env)))
+					'())))
 		(else (error "unknown expression")))))
 
