@@ -76,6 +76,12 @@
 
 (define quotate (lambda (expr) (cadr expr)))
 
+(define unquoted? (lambda (expr) (eqv? (car expr) 'unquote)))
+
+(define unquotate (lambda (expr env)
+	(nscm-eval (nscm-eval (cadr expr) env) env)))
+ 
+
 ;; Assignment expression
 ;;----------------------------------------------------------------------------------------------
 
@@ -115,8 +121,6 @@
 
 (define lambda? (lambda (expr) (eqv? (car expr) 'lambda)))
 
-(define macro? (lambda (expr) (eqv? (car expr) 'macro)))
-
 (define parameters (lambda (expr) (cadr expr)))
 
 (define body (lambda (expr) (cddr expr)))
@@ -124,15 +128,10 @@
 (define make-function (lambda (parameters body env)
 	(list 'FNC parameters body env)))
 
-(define make-macro (lambda (parameters body env)
-	(list 'MCR parameters body env)))
-
 ;; Procedure handler
 ;;----------------------------------------------------------------------------------------------
 
 (define function? (lambda (prc) (or (procedure? prc) (eqv? (car prc) 'FNC))))
-
-(define macro-function? (lambda (prc) (eqv? (car prc) 'MCR)))
 
 (define procedure-body (lambda (prc) (caddr prc)))
 
@@ -149,7 +148,7 @@
 
 (define operands (lambda (expr) (cdr expr)))
 
-;; Apply
+;; Apply and Expand
 ;;----------------------------------------------------------------------------------------------
 
 (define variadic? (lambda (prms)
@@ -167,21 +166,22 @@
 (define sequence-eval (lambda (exprs env)
 	(if (not (null? (cdr exprs)))
 		(begin 
-			(nanoscheme-eval (car exprs) env)
+			(nscm-eval (car exprs) env)
 			(sequence-eval (cdr exprs) env))
-		(nanoscheme-eval (car exprs) env))))
+		(nscm-eval (car exprs) env))))
 
-(define nanoscheme-apply (lambda (operator operands)
+(define nscm-apply (lambda (operator operands)
 	(cond
 		((procedure? operator) ;;primitive procedure NOT user defined procedure
 			(apply operator operands))
 
-		((or (function? operator) (macro-function? operator))
+		((function? operator) 
 			(let ((env (make-environment (procedure-env operator))))
 
 				(init-parameters (procedure-parameters operator) operands env)
 
 				(sequence-eval (procedure-body operator) env)))
+
 
 		(else (error "Cannot apply a non procedure")))))
 			
@@ -191,57 +191,45 @@
 (define eval-name (lambda (expr env)
 	(if (or (symbol? expr) (self? expr))
 		expr
-		(eval-name (nanoscheme-eval expr env) env))))
+		(eval-name (nscm-eval expr env) env))))
 
 (define eval-assignment (lambda (expr env)
 	(let ((name (eval-name (assignment-name expr) env)))
-		((env 'set) name (nanoscheme-eval (assignment-value expr) env)))))
+		((env 'set) name (nscm-eval (assignment-value expr) env)))))
 
 (define eval-definition (lambda (expr env)
 	(let ((name (eval-name (definition-name expr) env)))
-			((env 'def) name (nanoscheme-eval (definition-value expr) env)))))
+			((env 'def) name (nscm-eval (definition-value expr) env)))))
 
 (define eval-if (lambda (expr env)
-	(if (nanoscheme-eval (if-predicate expr) env)
-		(nanoscheme-eval (if-consequent expr) env)
-		(nanoscheme-eval (if-alternative expr) env))))
+	(if (nscm-eval (if-predicate expr) env)
+		(nscm-eval (if-consequent expr) env)
+		(nscm-eval (if-alternative expr) env))))
 
-(define eval-parameters (lambda (params env)
-	(cond
-		((null? params) '())
-		((symbol? (car params))
-			(cons (car params) (eval-parameters (cdr params) env)))
-		(else (error "invalid parameters list given")))))
-
-(define eval-eager-operands (lambda (lst env)
+(define eval-operands (lambda (lst env)
 	(if (null? lst)
 		'()
-		(cons (nanoscheme-eval (car lst) env) (eval-eager-operands (cdr lst) env)))))
+		(cons (nscm-eval (car lst) env) (eval-operands (cdr lst) env)))))
 
-(define eval-literal-operands (lambda (lst env) lst))
-
-(define nanoscheme-eval (lambda (expr env)
+(define nscm-eval (lambda (expr env)
 	(cond
 		((self? expr) expr)
 		((variable? expr) ((env 'get) expr))
 		((quoted? expr) (quotate expr))
+		((unquoted? expr) (unquotate expr env))
 		((assignment? expr) (eval-assignment expr env))
 		((definition? expr) (eval-definition expr env))
 		((if? expr) (eval-if expr env))
 		((lambda? expr) 
 			(make-function
-				(eval-parameters (parameters expr) env)
-				(body expr) env))
-		((macro? expr) 
-			(make-macro
-				(eval-parameters (parameters expr) env)
+				(parameters expr)
 				(body expr) env))
 		((call? expr)
-			(let ((prc (nanoscheme-eval (operator expr) env)))
-				(if (not (null? prc))
-					(if (function? prc)
-						(nanoscheme-apply prc (eval-eager-operands (operands expr) env))
-						(nanoscheme-apply prc (eval-literal-operands (operands expr) env)))
-					'())))
+			(let ((prc (nscm-eval (operator expr) env)))
+				(cond
+					((null? prc) '())
+					((function? prc)
+						(nscm-apply prc (eval-operands (operands expr) env)))
+					(else '()))))
 		(else (error "unknown expression")))))
 

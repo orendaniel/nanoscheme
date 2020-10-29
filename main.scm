@@ -18,8 +18,8 @@
 
 (define env (make-environment '()))
 
-((env 'def) 'eval nanoscheme-eval)
-((env 'def) 'apply nanoscheme-apply)
+((env 'def) 'eval nscm-eval)
+((env 'def) 'apply nscm-apply)
 ((env 'def) 'empty-environment (lambda () (make-environment '())))
 
 
@@ -66,7 +66,7 @@
 
 ((env 'def)
 	'procedure? 
-	(lambda (prc) (or (procedure? prc) (eqv? (car prc) 'FNC) (eqv? (car prc) 'MCR))))
+	(lambda (prc) (or (procedure? prc) (eqv? (car prc) 'FNC))))
 
 ((env 'def) 'make-rectangular make-rectangular)
 ((env 'def) 'make-polar make-polar)
@@ -112,7 +112,7 @@
 ((env 'def) 'cddar cddar)
 ((env 'def) 'cdddr cdddr)
 
-(nanoscheme-eval
+(nscm-eval
 	'(define map (lambda (prc lst)
 		(if (null? lst)
 			'()
@@ -120,7 +120,7 @@
 
 (define (repl)
 	(display ">> ")
-	(display (nanoscheme-eval (read) env))
+	(display (nscm-eval (read) env))
 	(newline)
 	(repl))
 
