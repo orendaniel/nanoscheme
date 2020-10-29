@@ -148,7 +148,7 @@
 
 (define operands (lambda (expr) (cdr expr)))
 
-;; Apply and Expand
+;; Apply
 ;;----------------------------------------------------------------------------------------------
 
 (define variadic? (lambda (prms)
