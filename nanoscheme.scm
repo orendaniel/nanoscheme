@@ -35,7 +35,7 @@
 				((null? lst) 
 					(if (null? outer) 
 					(begin (display "cannot set undefined entry - ") 
-						(display name) (newline) '())
+						(display name) (display "\n") '())
 						((outer 'set) name value)))
 				((eqv? (caar lst) name) (set-cdr! (car lst) value) '())
 				(else (helper (cdr lst))))))
@@ -48,7 +48,7 @@
 				(cdr res)
 				(if (null? outer) 
 					(begin (display "cannot get undefined entry - ") 
-						(display name) (newline) '())
+						(display name) (display "\n") '())
 					((outer 'get) name))))))
 
 	(lambda (cmd)
@@ -258,4 +258,3 @@
 					((expander? prc)
 						(nscm-expand prc (eval-literals (operands expr)) env)))))
 		(else (error "unknown expression")))))
-

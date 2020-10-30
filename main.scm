@@ -80,7 +80,7 @@
 ((env 'def) 'vector-ref vector-ref)
 ((env 'def) 'vector-set! vector-set!)
 
-((env 'def) 'display (lambda (text) (display text) (newline) '()))
+((env 'def) 'display (lambda (text) (display text) '()))
 ((env 'def) 'read read)
 ((env 'def) 'exit exit)
 ((env 'def) 'error error)
@@ -142,6 +142,14 @@
 				(list 'if (car lst) #t #f)
 				(list 'if (car lst) #t (helper (cdr lst))))))
 		(helper *or_clauses*))) env)
+
+(nscm-eval
+	'(define cond (macro (... *cond_clauses*)
+		(define helper (lambda (lst)
+			(if (null? (cdr lst))
+				(list 'if (if (eqv? (caar lst) 'else) #t (caar lst)) '(begin ,@(cdar lst)) '())
+				(list 'if (caar lst) '(begin ,@(cdar lst)) (helper (cdr lst))))))
+		(helper *cond_clauses*))) env)
 
 
 (define (repl)
