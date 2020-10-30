@@ -20,8 +20,8 @@
 
 ((env 'def) 'eval nscm-eval)
 ((env 'def) 'apply nscm-apply)
+((env 'def) 'expand nscm-expand)
 ((env 'def) 'empty-environment (lambda () (make-environment '())))
-
 
 ((env 'def) 'car car)
 ((env 'def) 'cdr cdr)
@@ -117,6 +117,32 @@
 		(if (null? lst)
 			'()
 			(cons (prc (car lst)) (map prc (cdr lst)))))) env)
+
+(nscm-eval
+	'(define begin (macro (... *begin_body*)
+		'((lambda ,() ,@*begin_body*)))) env)
+
+(nscm-eval
+	'(define let (macro (*let_defs* ... *let_body*)
+		'((lambda ,(map car *let_defs*) ,@*let_body*)
+			,@(map cadr *let_defs*)))) env)
+
+(nscm-eval
+	'(define and (macro (... *and_clauses*)
+		(define helper (lambda (lst)
+			(if (null? (cdr lst))
+				(list 'if (car lst) #t #f)
+				(list 'if (car lst) (helper (cdr lst)) #f))))
+		(helper *and_clauses*))) env)
+
+(nscm-eval
+	'(define or (macro (... *or_clauses*)
+		(define helper (lambda (lst)
+			(if (null? (cdr lst))
+				(list 'if (car lst) #t #f)
+				(list 'if (car lst) #t (helper (cdr lst))))))
+		(helper *or_clauses*))) env)
+
 
 (define (repl)
 	(display ">> ")

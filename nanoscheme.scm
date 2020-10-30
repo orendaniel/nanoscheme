@@ -74,13 +74,19 @@
 
 (define quoted? (lambda (expr) (eqv? (car expr) 'quote)))
 
-(define quotate (lambda (expr) (cadr expr)))
+(define quotate (lambda (expr env)
+	(define helper (lambda (lst)
+		(cond
+			((null? lst) '())
+			((not (pair? lst)) lst)
+			((and (pair? (car lst)) (eqv? (caar lst) 'unquote))
+				(cons (nscm-eval (helper (cadar lst)) env) (helper (cdr lst))))
+			((and (pair? (car lst)) (eqv? (caar lst) 'unquote-splicing))
+				(append (nscm-eval (helper (cadar lst)) env) (helper (cdr lst))))
+			(else
+				(cons (helper (car lst)) (helper (cdr lst)))))))
+	(helper (cadr expr))))
 
-(define unquoted? (lambda (expr) (eqv? (car expr) 'unquote)))
-
-(define unquotate (lambda (expr env)
-	(nscm-eval (nscm-eval (cadr expr) env) env)))
- 
 
 ;; Assignment expression
 ;;----------------------------------------------------------------------------------------------
@@ -121,6 +127,8 @@
 
 (define lambda? (lambda (expr) (eqv? (car expr) 'lambda)))
 
+(define macro? (lambda (expr) (eqv? (car expr) 'macro)))
+
 (define parameters (lambda (expr) (cadr expr)))
 
 (define body (lambda (expr) (cddr expr)))
@@ -128,10 +136,15 @@
 (define make-function (lambda (parameters body env)
 	(list 'FNC parameters body env)))
 
+(define make-expander (lambda (parameters body env)
+	(list 'MCR parameters body env)))
+
 ;; Procedure handler
 ;;----------------------------------------------------------------------------------------------
 
 (define function? (lambda (prc) (or (procedure? prc) (eqv? (car prc) 'FNC))))
+
+(define expander? (lambda (prc) (eqv? (car prc) 'MCR)))
 
 (define procedure-body (lambda (prc) (caddr prc)))
 
@@ -148,7 +161,7 @@
 
 (define operands (lambda (expr) (cdr expr)))
 
-;; Apply
+;; Apply and Expand
 ;;----------------------------------------------------------------------------------------------
 
 (define variadic? (lambda (prms)
@@ -158,7 +171,8 @@
 	(if (and (null? prms) (null? args))
 		'()
 		(if (variadic? prms)
-			(if (not (null? (cdr prms))) ((env 'def) (cadr prms) args))
+			(if (not (null? (cdr prms)))
+				((env 'def) (cadr prms) args))
 			(begin 
 				((env 'def) (car prms) (car args))
 				(init-parameters (cdr prms) (cdr args) env))))))
@@ -175,16 +189,26 @@
 		((procedure? operator) ;;primitive procedure NOT user defined procedure
 			(apply operator operands))
 
-		((function? operator) 
+		((function? operator)
 			(let ((env (make-environment (procedure-env operator))))
 
 				(init-parameters (procedure-parameters operator) operands env)
 
 				(sequence-eval (procedure-body operator) env)))
 
-
 		(else (error "Cannot apply a non procedure")))))
-			
+
+(define nscm-expand (lambda (operator operands caller-env)
+	(cond
+		((expander? operator)
+			(let ((env (make-environment (procedure-env operator))))
+
+				(init-parameters (procedure-parameters operator) operands env)
+
+				(nscm-eval (sequence-eval (procedure-body operator) env) caller-env)))
+
+		(else (error "Cannot expand a non procedure")))))
+
 ;; Eval
 ;;----------------------------------------------------------------------------------------------
 
@@ -211,25 +235,27 @@
 		'()
 		(cons (nscm-eval (car lst) env) (eval-operands (cdr lst) env)))))
 
+(define eval-literals (lambda (lst) lst))
+
 (define nscm-eval (lambda (expr env)
 	(cond
 		((self? expr) expr)
 		((variable? expr) ((env 'get) expr))
-		((quoted? expr) (quotate expr))
-		((unquoted? expr) (unquotate expr env))
+		((quoted? expr) (quotate expr env))
 		((assignment? expr) (eval-assignment expr env))
 		((definition? expr) (eval-definition expr env))
 		((if? expr) (eval-if expr env))
 		((lambda? expr) 
-			(make-function
-				(parameters expr)
-				(body expr) env))
+			(make-function (parameters expr) (body expr) env))
+		((macro? expr)
+			(make-expander (parameters expr) (body expr) env))
 		((call? expr)
 			(let ((prc (nscm-eval (operator expr) env)))
 				(cond
 					((null? prc) '())
 					((function? prc)
 						(nscm-apply prc (eval-operands (operands expr) env)))
-					(else '()))))
+					((expander? prc)
+						(nscm-expand prc (eval-literals (operands expr)) env)))))
 		(else (error "unknown expression")))))
 
