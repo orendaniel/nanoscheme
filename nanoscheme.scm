@@ -26,7 +26,7 @@
 					(begin (display "cannot set undefined entry - ") 
 						(display name) (display "\n") '())
 						((outer 'set) name value)))
-				((eqv? (caar lst) name) (set-cdr! (car lst) value) '())
+				((eqv? (caar lst) name) (set-cdr! (car lst) value) "setted")
 				(else (helper (cdr lst))))))
 		(helper dict)))
 
