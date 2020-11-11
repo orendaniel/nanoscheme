@@ -15,7 +15,7 @@
 
 	;; Definer
 	(define dict-define! (lambda (name value)
-		(set! dict (cons (cons name value) dict)) "defined"))
+		(set! dict (cons (cons name value) dict)) 'defined))
 
 	;; Setter
 	(define dict-set! (lambda (name value)
@@ -26,7 +26,7 @@
 					(begin (display "cannot set undefined entry - ") 
 						(display name) (display "\n") '())
 						((outer 'set) name value)))
-				((eqv? (caar lst) name) (set-cdr! (car lst) value) "setted")
+				((eqv? (caar lst) name) (set-cdr! (car lst) value) 'setted)
 				(else (helper (cdr lst))))))
 		(helper dict)))
 
