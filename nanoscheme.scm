@@ -9,8 +9,7 @@
 (define display-error (lambda (msg expr)
 	(display msg)
 	(display expr)
-	(display "\n"))
-	'())
+	(display "\n") '()))
 
 ; every environment has an outer environment pointer
 ; that represent the outer lexical scope
@@ -205,18 +204,17 @@
 ;; Eval
 ;;----------------------------------------------------------------------------------------------
 
-(define eval-name (lambda (expr env)
-	(if (or (symbol? expr) (self? expr))
-		expr
-		(eval-name (nscm-eval expr env) env))))
-
 (define eval-assignment (lambda (expr env)
-	(let ((name (eval-name (assignment-name expr) env)))
-		((env 'set) name (nscm-eval (assignment-value expr) env)))))
+	(let ((name (assignment-name expr)))
+		(if (symbol? name)
+			((env 'set) name (nscm-eval (assignment-value expr) env))
+			(display-error "not a symbol - " name)))))
 
 (define eval-definition (lambda (expr env)
-	(let ((name (eval-name (definition-name expr) env)))
-			((env 'def) name (nscm-eval (definition-value expr) env)))))
+	(let ((name (assignment-name expr)))
+		(if (symbol? name)
+			((env 'def) name (nscm-eval (assignment-value expr) env))
+			(display-error "not a symbol - " name)))))
 
 (define eval-if (lambda (expr env)
 	(if (nscm-eval (if-predicate expr) env)

@@ -16,6 +16,9 @@
 ((env 'def) 'cdr cdr)
 ((env 'def) 'cons cons)
 
+((env 'def) 'set-car! (lambda (p v) (set-car! p v) '()))
+((env 'def) 'set-cdr! (lambda (p v) (set-cdr! p v) '()))
+
 ((env 'def) '+ +)
 ((env 'def) '* *)
 ((env 'def) '- -)
