@@ -15,8 +15,6 @@
 ((env 'def) 'car car)
 ((env 'def) 'cdr cdr)
 ((env 'def) 'cons cons)
-((env 'def) 'set-car! set-car!)
-((env 'def) 'set-cdr! set-cdr!)
 
 ((env 'def) '+ +)
 ((env 'def) '* *)
@@ -74,16 +72,11 @@
 ((env 'def) 'exit exit)
 ((env 'def) 'error error)
 
-((env 'def) 'assoc assoc)
-((env 'def) 'string-fill! string-fill!)
-((env 'def) 'vector-fill! vector-fill!)
-
 ((env 'def) 'list list)
 ((env 'def) 'list? list?)
 ((env 'def) 'list-ref list-ref)
 ((env 'def) 'reverse reverse)
 ((env 'def) 'append append)
-((env 'def) 'member member)
 
 ((env 'def) 'list->vector list->vector)
 ((env 'def) 'vector->list vector->list)

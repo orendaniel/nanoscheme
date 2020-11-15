@@ -6,6 +6,12 @@
 ;; Environment 
 ;;----------------------------------------------------------------------------------------------
 
+(define display-error (lambda (msg expr)
+	(display msg)
+	(display expr)
+	(display "\n"))
+	'())
+
 ; every environment has an outer environment pointer
 ; that represent the outer lexical scope
 (define make-environment (lambda (outer)
@@ -23,8 +29,7 @@
 			(cond
 				((null? lst) 
 					(if (null? outer) 
-					(begin (display "cannot set undefined entry - ") 
-						(display name) (display "\n") '())
+						(display-error "cannot set undefined entry - " name)
 						((outer 'set) name value)))
 				((eqv? (caar lst) name) (set-cdr! (car lst) value) 'setted)
 				(else (helper (cdr lst))))))
@@ -36,8 +41,7 @@
 			(if res
 				(cdr res)
 				(if (null? outer) 
-					(begin (display "cannot get undefined entry - ") 
-						(display name) (display "\n") '())
+					(display-error "cannot get undefined entry - " name)
 					((outer 'get) name))))))
 
 	(lambda (cmd)
